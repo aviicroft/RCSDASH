@@ -216,12 +216,12 @@
   // Subject definitions for Science departments
   const deptSubjects = {
     "B.Sc DCFS": [
-      { code: "25BDC1CA", type: "Theory" },
-      { code: "25BDC1CP", type: "Lab" },
-      { code: "25BDC1AA", type: "Theory" },
-      { code: "25BDC1ZA", type: "Theory" },
-      { code: "25BCS11T", type: "Theory" },
-      { code: "25BCS12E", type: "Theory" }
+      { code: "25BDC2CA", type: "Theory" },
+      { code: "25BDC2CP", type: "Theory" },
+      { code: "25BDC2AA", type: "Theory" },
+      { code: "25BDC2EA", type: "Theory" },
+      { code: "25BCS21T", type: "Theory" },
+      { code: "25BCS22E", type: "Theory" }
     ]
   };
   const maxMap = { "Theory": 15, "Lab": 15 };
@@ -542,17 +542,21 @@
           const row = rowByRegister.get(String(student.registerNo).toLowerCase().trim());
           if (!row) return;
 
+          const subjects = [];
           const mappingSubjects = deptSubjects[department] || [];
-          let marksTotal = 0;
 
           if (mappingSubjects.length) {
             mappingSubjects.forEach(sub => {
               const codeHeader = cols.find(c => normalizeLabel(c) === normalizeLabel(sub.code) || c === sub.code);
               const headerKey = codeHeader || cols.find(c => normalizeLabel(c).includes(normalizeLabel(sub.code)));
               if (!headerKey) return;
-              marksTotal += row[headerKey] === 0 || row[headerKey] === "0" ? 0 : Number(row[headerKey]) || 0;
+              const marksVal = row[headerKey] === 0 || row[headerKey] === "0" ? 0 : Number(row[headerKey]) || 0;
+              const fixedMax = maxMap[sub.type] !== undefined ? maxMap[sub.type] : marksVal;
+              subjects.push({ code: headerKey, type: sub.type, marks: marksVal, max: Math.max(fixedMax, marksVal) });
             });
-          } else {
+          }
+
+          if (!subjects.length) {
             const startIndex = cols.findIndex(c => /[A-Za-z]/.test(c) && /\d/.test(c) && c.length >= 3);
             const effectiveStart = Math.max(0, startIndex);
             const stopIndex = cols.findIndex(c => {
@@ -565,11 +569,14 @@
               const col = cols[i];
               const label = normalizeLabel(col);
               if (!col || label.endsWith("_rp") || label.includes("reward") || isSystemHeader(col)) continue;
-              marksTotal += row[col] === 0 || row[col] === "0" ? 0 : Number(row[col]) || 0;
+              const marksVal = row[col] === 0 || row[col] === "0" ? 0 : Number(row[col]) || 0;
+              const type = label.includes("lab") ? "Lab" : "Theory";
+              const fixedMax = maxMap[type] !== undefined ? maxMap[type] : marksVal;
+              subjects.push({ code: col, type, marks: marksVal, max: Math.max(fixedMax, marksVal) });
             }
           }
 
-          student.marksOutOf90 = Math.min(90, marksTotal);
+          student.marksOutOf90 = subjects.reduce((total, subject) => total + Number(subject.marks || 0), 0);
         });
       } catch (err) {
         console.error(`Failed to load leaderboard marks for ${department}:`, err);
