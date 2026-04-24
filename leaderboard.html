@@ -235,9 +235,22 @@
   const nextPageBtn = document.getElementById("nextPageBtn");
   const pageInfo = document.getElementById("pageInfo");
   const topHighlights = document.getElementById("topHighlights");
+  const studentModal = document.getElementById("studentModal");
+  const closeModal = document.getElementById("closeModal");
+  const modalStudentInfo = document.getElementById("modalStudentInfo");
+  const modalIp1Points = document.getElementById("modalIp1Points");
+  const modalIp2Points = document.getElementById("modalIp2Points");
+  const modalTotalPoints = document.getElementById("modalTotalPoints");
+  const modalActivityTable = document.getElementById("modalActivityTable");
+  const modalInternalThead = document.getElementById("modalInternalThead");
+  const modalInternalTbody = document.getElementById("modalInternalTbody");
+  const modalInternalTfoot = document.getElementById("modalInternalTfoot");
+  const internalMarksNote = document.getElementById("internalMarksNote");
 
   let allStudents = [];
   let filteredStudents = [];
+  let ip1RawData = [];
+  let ip2RawData = [];
   let pageSize = 50;
   let currentPage = 1;
 
@@ -280,9 +293,11 @@
 
   async function loadAllData() {
     showStatus("Loading IP1 data...", "info");
-    const ip1Data = await loadSheet("IP1", SHEETS.IP1);
+    ip1RawData = await loadSheet("IP1", SHEETS.IP1);
     showStatus("Loading IP2 data...", "info");
-    const ip2Data = await loadSheet("IP2", SHEETS.IP2);
+    ip2RawData = await loadSheet("IP2", SHEETS.IP2);
+    const ip1Data = ip1RawData;
+    const ip2Data = ip2RawData;
     
     // Find headers
     const ip1Headers = ip1Data.length > 0 ? Object.keys(ip1Data[0]).filter(h => !h.startsWith("_") && !isSystemHeader(h)) : [];
@@ -443,8 +458,8 @@
     document.querySelectorAll('.student-link').forEach(link => {
       link.addEventListener('click', async (e) => {
         e.preventDefault();
-        const registerNo = e.target.dataset.register;
-        const department = e.target.dataset.department;
+        const registerNo = e.currentTarget.dataset.register;
+        const department = e.currentTarget.dataset.department;
         await openStudentModal(registerNo, department);
       });
     });
@@ -493,6 +508,273 @@
     });
     
     topHighlights.innerHTML = html;
+  }
+
+  closeModal.addEventListener("click", () => {
+    studentModal.classList.add("hidden");
+  });
+
+  studentModal.addEventListener("click", (e) => {
+    if (e.target === studentModal) studentModal.classList.add("hidden");
+  });
+
+  async function openStudentModal(registerNo, department) {
+    studentModal.classList.remove("hidden");
+    modalActivityTable.innerHTML = `<tr><td colspan="5" class="px-3 py-2 text-center">Loading activities...</td></tr>`;
+    internalMarksNote.textContent = "Loading internal marks...";
+    modalInternalThead.innerHTML = "";
+    modalInternalTbody.innerHTML = "";
+    modalInternalTfoot.innerHTML = "";
+
+    const student = allStudents.find(s => String(s.registerNo).toLowerCase() === String(registerNo).toLowerCase());
+    if (!student) {
+      modalStudentInfo.innerHTML = `<div class="col-span-4 text-center text-red-600">Student not found</div>`;
+      modalActivityTable.innerHTML = "";
+      internalMarksNote.textContent = "";
+      return;
+    }
+
+    modalStudentInfo.innerHTML = `
+      <div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">Register No</div><div class="font-semibold">${student.registerNo}</div></div>
+      <div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">Name</div><div class="font-semibold">${student.name}</div></div>
+      <div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">Department</div><div class="font-semibold">${student.department || "-"}</div></div>
+      <div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">Year</div><div class="font-semibold">1st Year</div></div>
+    `;
+    modalIp1Points.textContent = student.ip1Points;
+    modalIp2Points.textContent = student.ip2Points;
+    modalTotalPoints.textContent = student.total;
+
+    loadStudentActivities(student.registerNo);
+    await loadStudentInternalMarks(student.registerNo, department || student.department, student.total);
+  }
+
+  function parseActivityName(name) {
+    const raw = String(name || "").trim();
+    const tokens = raw.split("_").map(t => t.trim()).filter(t => t.length > 0);
+    const meta = { raw, forWho: "", year: "", dateStart: "", dateEnd: "", activityName: "", category: "", maxPoints: null, college: "" };
+    if (tokens.length < 6) { meta.activityName = raw; return meta; }
+
+    let idx = tokens[0].toUpperCase() === "RP" ? 1 : 0;
+    meta.forWho = tokens[idx] || ""; idx++;
+    meta.year = tokens[idx] || ""; idx++;
+
+    const dateToken = tokens[idx] || "";
+    if (dateToken.toLowerCase().includes("to") || (tokens[idx + 1] && tokens[idx + 1].toLowerCase() === "to")) {
+      if (tokens[idx + 1] && tokens[idx + 1].toLowerCase() === "to") {
+        meta.dateStart = tokens[idx];
+        meta.dateEnd = tokens[idx + 2] || tokens[idx];
+        idx += 3;
+      } else {
+        const parts = dateToken.split(/to/i);
+        meta.dateStart = (parts[0] || "").replace(/[_-]/g, ".").trim();
+        meta.dateEnd = (parts[1] || meta.dateStart).replace(/[_-]/g, ".").trim();
+        idx++;
+      }
+    } else {
+      meta.dateStart = dateToken;
+      meta.dateEnd = dateToken;
+      idx++;
+    }
+
+    let categoryIdx = -1;
+    for (let i = tokens.length - 1; i >= idx; i--) {
+      if (CATEGORY_CODES.includes(tokens[i].toUpperCase())) { categoryIdx = i; break; }
+    }
+    if (categoryIdx === -1) categoryIdx = tokens.length - 3;
+    meta.college = tokens[tokens.length - 1] || "";
+    const maxToken = tokens[tokens.length - 2] || "";
+    const maxN = Number(maxToken);
+    meta.maxPoints = Number.isNaN(maxN) ? null : maxN;
+    meta.category = (tokens[categoryIdx] || "").toUpperCase();
+    if (!CATEGORY_CODES.includes(meta.category)) meta.category = "OT";
+    meta.activityName = categoryIdx > idx ? tokens.slice(idx, categoryIdx).join("_") : tokens.slice(idx, tokens.length - 2).join("_");
+    return meta;
+  }
+
+  function loadStudentActivities(registerNo) {
+    const activities = [];
+
+    [
+      { key: "IP1", rows: ip1RawData },
+      { key: "IP2", rows: ip2RawData }
+    ].forEach(({ key, rows }) => {
+      rows.forEach(student => {
+        const regKey = Object.keys(student).find(k => normalizeLabel(k).includes("register") || normalizeLabel(k).includes("reg"));
+        if (!regKey || String(student[regKey]).toLowerCase().trim() !== String(registerNo).toLowerCase().trim()) return;
+
+        Object.keys(student)
+          .filter(h => !h.startsWith("_") && !isSystemHeader(h))
+          .forEach(h => {
+            const points = Number(student[h]) || 0;
+            if (points <= 0) return;
+            const meta = parseActivityName(h);
+            const displayName = meta.activityName && meta.activityName !== meta.raw ? meta.activityName.replace(/_/g, " ") : h.replace(/^RP_/, "").replace(/_/g, " ");
+            activities.push({
+              name: displayName,
+              date: meta.dateEnd && meta.dateEnd !== meta.dateStart ? `${meta.dateStart} to ${meta.dateEnd}` : (meta.dateStart || "-"),
+              category: meta.category || "-",
+              points,
+              internal: key
+            });
+          });
+      });
+    });
+
+    let sno = 1;
+    modalActivityTable.innerHTML = activities.map(act => `
+      <tr>
+        <td class="px-3 py-2">${sno++}</td>
+        <td class="px-3 py-2 font-medium"><span class="text-xs text-gray-500">${act.internal}</span> ${act.name}</td>
+        <td class="px-3 py-2">${act.date}</td>
+        <td class="px-3 py-2"><span class="bg-gray-100 px-2 py-1 rounded text-xs">${act.category}</span></td>
+        <td class="px-3 py-2 text-center font-semibold text-indigo-600">${act.points}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="5" class="px-3 py-2 text-center">No activities found</td></tr>`;
+  }
+
+  async function loadStudentInternalMarks(registerNo, department, rewardPoints) {
+    internalMarksNote.textContent = "Loading internal marks...";
+    modalInternalThead.innerHTML = "";
+    modalInternalTbody.innerHTML = "";
+    modalInternalTfoot.innerHTML = "";
+
+    if (!department) {
+      internalMarksNote.textContent = "Department not available";
+      return;
+    }
+
+    const internalKey = "IP2";
+    const deptSheet = INTERNAL_MARKS_SHEETS[internalKey] ? INTERNAL_MARKS_SHEETS[internalKey][department] : null;
+    if (!deptSheet) {
+      internalMarksNote.innerHTML = `<span class="text-red-600">Internal marks sheet not configured for ${department}.</span>`;
+      return;
+    }
+
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${deptSheet.id}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(deptSheet.name)}&tq=${encodeURIComponent("SELECT *")}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const text = await res.text();
+      if (text.trim().startsWith("<!DOCTYPE html") || text.toLowerCase().includes("signin")) {
+        throw new Error("Sheet not public");
+      }
+
+      const match = text.match(/setResponse\(([\s\S]*?)\)\s*;?$/);
+      const json = match ? JSON.parse(match[1]) : JSON.parse(text.substr(47).slice(0, -2));
+      const cols = json.table.cols.map(c => c.label?.trim() || "").filter(Boolean);
+      const rows = (json.table.rows || []).map(r => {
+        const obj = {};
+        cols.forEach((c, i) => obj[c] = r.c[i]?.v ?? "");
+        return obj;
+      });
+
+      const regKey = cols.find(c => normalizeLabel(c).includes("register") || normalizeLabel(c).includes("reg") || normalizeLabel(c).includes("roll"));
+      if (!regKey) {
+        internalMarksNote.innerHTML = `<span class="text-red-600">No register column found.</span>`;
+        return;
+      }
+
+      const studentRow = rows.find(r => String(r[regKey]).toLowerCase().trim() === String(registerNo).toLowerCase().trim());
+      if (!studentRow) {
+        internalMarksNote.innerHTML = `<span class="text-yellow-700">No internal marks found for ${registerNo}</span>`;
+        return;
+      }
+
+      const normalizedMap = new Map(cols.map(c => [normalizeLabel(c), c]));
+      function findRPColumnFor(base) {
+        const baseNorm = normalizeLabel(base);
+        const directMatches = [baseNorm + "_rp", baseNorm + " rp", baseNorm + "rp"];
+        for (const key of directMatches) if (normalizedMap.has(key)) return normalizedMap.get(key);
+        const containsMatch = cols.find(c => normalizeLabel(c).endsWith("_rp") && normalizeLabel(c).includes(baseNorm));
+        if (containsMatch) return containsMatch;
+        const idx = cols.findIndex(c => normalizeLabel(c) === baseNorm);
+        if (idx >= 0) {
+          if (cols[idx + 1] && normalizeLabel(cols[idx + 1]).includes("rp")) return cols[idx + 1];
+          if (cols[idx - 1] && normalizeLabel(cols[idx - 1]).includes("rp")) return cols[idx - 1];
+        }
+        return null;
+      }
+
+      const subjects = [];
+      const mappingSubjects = deptSubjects && deptSubjects[department];
+      if (Array.isArray(mappingSubjects) && mappingSubjects.length) {
+        mappingSubjects.forEach(sub => {
+          const codeHeader = cols.find(c => normalizeLabel(c) === normalizeLabel(sub.code) || c === sub.code);
+          const headerKey = codeHeader || cols.find(c => normalizeLabel(c).includes(normalizeLabel(sub.code)));
+          if (!headerKey) return;
+          const rpCol = findRPColumnFor(headerKey);
+          const marksVal = studentRow[headerKey] === 0 || studentRow[headerKey] === "0" ? 0 : Number(studentRow[headerKey]) || 0;
+          const rpVal = rpCol ? Number(studentRow[rpCol]) || 0 : 0;
+          const fixedMax = maxMap[sub.type] !== undefined ? maxMap[sub.type] : marksVal;
+          subjects.push({ code: headerKey, type: sub.type, marks: marksVal, rp: rpVal, max: Math.max(fixedMax, marksVal) });
+        });
+      }
+
+      if (!subjects.length) {
+        const startIndex = cols.findIndex(c => /[A-Za-z]/.test(c) && /\d/.test(c) && c.length >= 3);
+        const effectiveStart = Math.max(0, startIndex);
+        const stopIndex = cols.findIndex(c => {
+          const label = normalizeLabel(c || "");
+          return (label.includes("balance") && label.includes("reward")) || label.includes("allocated") || label.includes("total internal");
+        });
+        const effectiveStop = stopIndex > effectiveStart ? stopIndex : cols.length;
+
+        for (let i = effectiveStart; i < effectiveStop; i++) {
+          const col = cols[i];
+          if (!col) continue;
+          const label = normalizeLabel(col);
+          if (label.endsWith("_rp") || label.includes("reward") || isSystemHeader(col)) continue;
+          const rpCol = findRPColumnFor(col);
+          const marksVal = studentRow[col] === 0 || studentRow[col] === "0" ? 0 : Number(studentRow[col]) || 0;
+          const rpVal = rpCol ? Number(studentRow[rpCol]) || 0 : 0;
+          const type = label.includes("lab") ? "Lab" : "Theory";
+          const fixedMax = maxMap[type] !== undefined ? maxMap[type] : marksVal;
+          subjects.push({ code: col, type, marks: marksVal, rp: rpVal, max: Math.max(fixedMax, marksVal) });
+        }
+      }
+
+      const totalInternalMark = subjects.reduce((a, b) => a + Number(b.marks || 0), 0);
+      const totalRP = subjects.reduce((a, b) => a + Number(b.rp || 0), 0);
+      const finalTotalMax = subjects.reduce((a, b) => a + Number(b.max || 0), 0);
+
+      modalInternalThead.innerHTML = `
+        <tr>
+          <th class="px-3 py-2">S.No</th>
+          <th class="px-3 py-2">Subject Code</th>
+          <th class="px-3 py-2">Type</th>
+          <th class="px-3 py-2 text-center">Marks</th>
+          <th class="px-3 py-2 text-center">RP</th>
+          <th class="px-3 py-2 text-center">Max</th>
+        </tr>
+      `;
+
+      let sno = 1;
+      modalInternalTbody.innerHTML = subjects.map(s => `
+        <tr>
+          <td class="px-3 py-2">${sno++}</td>
+          <td class="px-3 py-2 font-medium">${s.code}</td>
+          <td class="px-3 py-2">${s.type}</td>
+          <td class="px-3 py-2 text-center">${s.marks}</td>
+          <td class="px-3 py-2 text-center text-green-600">${s.rp}</td>
+          <td class="px-3 py-2 text-center">${s.max}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="6" class="px-3 py-2 text-center">No subject data</td></tr>`;
+
+      modalInternalTfoot.innerHTML = `
+        <tr class="font-semibold">
+          <td class="px-3 py-2" colspan="3">Total</td>
+          <td class="px-3 py-2 text-center">${totalInternalMark}</td>
+          <td class="px-3 py-2 text-center text-green-600">${totalRP}</td>
+          <td class="px-3 py-2 text-center">${finalTotalMax}</td>
+        </tr>
+      `;
+
+      internalMarksNote.textContent = `Internal marks from ${deptSheet.name}. Reward points total: ${rewardPoints}`;
+    } catch (err) {
+      console.error("Failed to load internal marks:", err);
+      internalMarksNote.innerHTML = `<span class="text-red-600">Error loading internal marks: ${err.message}</span>`;
+    }
   }
 
   // Event listeners
