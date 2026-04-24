@@ -326,6 +326,9 @@
   const maxMap = { "Theory": 15 };
 
   const CATEGORY_CODES = ['CD','PCDP','SM','AC','RPA','SPL','OT'];
+  const SYSTEM_HEADER_LABELS = ["email address","name","register no","department","total"];
+  function normalizeLabel(label) { return (label||"").toString().trim().toLowerCase(); }
+  function isSystemHeader(hdr) { return SYSTEM_HEADER_LABELS.includes(normalizeLabel(hdr)); }
 
   // DOM refs
   const departmentFilter = document.getElementById("departmentFilter");
@@ -562,8 +565,8 @@
     document.querySelectorAll('.student-link').forEach(link => {
       link.addEventListener('click', async (e) => {
         e.preventDefault();
-        const registerNo = e.target.dataset.register;
-        const department = e.target.dataset.department;
+        const registerNo = e.currentTarget.dataset.register;
+        const department = e.currentTarget.dataset.department;
         await openStudentModal(registerNo, department);
       });
     });
@@ -972,12 +975,10 @@
     }
   }
 
-  // Store raw data for activity lookup
-  async function loadAllData() {
-    showStatus("Loading IP1 data...", "info");
-    ip1RawData = await loadSheet("IP1", SHEETS.IP1);
-    showStatus("Loading IP2 data...", "info");
-    ip2RawData = await loadSheet("IP2", SHEETS.IP2);
+  // Initialize
+  (async function init() {
+    await loadAllData();
+  })();
 </script>
 </body>
 </html>
