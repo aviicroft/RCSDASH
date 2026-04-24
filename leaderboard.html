@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RCS Leadership Board - Top 50 Students</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+  <header class="bg-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto flex items-center justify-between px-6 py-4">
+      <div class="flex items-center space-x-3">
+        <img src="rathinamlogo.png" alt="Rathinam Logo" class="h-12 w-12">
+        <h1 class="text-2xl font-bold text-indigo-700">RCS Leadership Board</h1>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a href="index.html" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center space-x-1">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>Back to Portal</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div id="statusBar" class="container mx-auto mt-4 px-6 hidden">
+    <div id="statusMessage" class="rounded-lg p-3 text-sm"></div>
+  </div>
+
+  <section class="container mx-auto mt-4 px-6">
+    <div class="bg-white shadow-lg rounded-xl p-6">
+      <h2 class="text-lg font-semibold flex items-center space-x-2 text-indigo-700 mb-6">
+        <i data-lucide="trophy" class="w-5 h-5"></i>
+        <span>Top 50 Leadership Board</span>
+      </h2>
+      
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
+        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-center">
+          <div class="text-gray-500 text-sm font-medium">Total Students</div>
+          <div id="totalStudents" class="text-indigo-700 font-bold text-2xl mt-1">0</div>
+        </div>
+        <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+          <div class="text-gray-500 text-sm font-medium">IP1 Total Points</div>
+          <div id="ip1TotalPoints" class="text-green-600 font-bold text-2xl mt-1">0</div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+          <div class="text-gray-500 text-sm font-medium">IP2 Total Points</div>
+          <div id="ip2TotalPoints" class="text-blue-600 font-bold text-2xl mt-1">0</div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-4 mb-6">
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-sm font-medium mb-1">Filter by Department</label>
+          <select id="departmentFilter"
+            class="w-full border rounded-lg px-3 py-2 h-12 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+            <option value="">All Departments</option>
+          </select>
+        </div>
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-sm font-medium mb-1">Sort By</label>
+          <select id="sortBy"
+            class="w-full border rounded-lg px-3 py-2 h-12 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+            <option value="total">Total Points (Desc)</option>
+            <option value="ip1">IP1 Points (Desc)</option>
+            <option value="ip2">IP2 Points (Desc)</option>
+          </select>
+        </div>
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-sm font-medium mb-1">Search</label>
+          <input id="searchInput" type="text" placeholder="Search by name or register no..."
+            class="w-full border rounded-lg px-3 py-2 h-12 focus:ring-2 focus:ring-indigo-400 focus:outline-none" />
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full table-auto border border-gray-200 divide-y divide-gray-200 rounded-xl shadow-sm">
+          <thead class="bg-indigo-600 text-white">
+            <tr>
+              <th class="px-4 py-3 text-center">Rank</th>
+              <th class="px-4 py-3">Register No</th>
+              <th class="px-4 py-3">Name</th>
+              <th class="px-4 py-3">Department</th>
+              <th class="px-4 py-3 text-center">IP1 Points</th>
+              <th class="px-4 py-3 text-center">IP2 Points</th>
+              <th class="px-4 py-3 text-center bg-indigo-700">Total Points</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardTable" class="bg-white divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+
+      <div id="paginationControls" class="mt-4 w-full flex flex-col gap-3 items-stretch md:flex-row md:items-center md:justify-between hidden">
+        <div class="flex items-center gap-2 md:gap-3">
+          <label class="text-sm text-gray-600 whitespace-nowrap">Rows per page</label>
+          <select id="pageSizeSelect"
+            class="border rounded px-2 py-1 w-full md:w-24 h-10">
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50" selected>50</option>
+          </select>
+        </div>
+        <div id="pageInfo" class="text-sm text-gray-600 text-center md:text-left flex-1">
+          Showing 0-0 of 0
+        </div>
+        <div class="flex items-center gap-2 justify-end">
+          <button id="prevPageBtn" class="px-3 py-1 border rounded w-full md:w-auto disabled:opacity-40 h-10">Prev</button>
+          <button id="nextPageBtn" class="px-3 py-1 border rounded w-full md:w-auto disabled:opacity-40 h-10">Next</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container mx-auto mt-8 px-6 mb-12">
+    <div class="bg-white shadow-lg rounded-xl p-6">
+      <h3 class="text-lg font-semibold text-indigo-700 mb-4">Top 10 Highlights</h3>
+      <div id="topHighlights" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+  </section>
+
+<script>
+  lucide.createIcons();
+
+  /***** CONFIG *****/
+  const SHEETS = {
+    IP1: { id: "1SjZM-7RS3W4t_fideh5cRFr36PPI7RpraIiLXHVYpX4", name: "RCS_1styear_IP1_RewardsSplit" },
+    IP2: { id: "1Ax3N09QlcAAhcwzBjIYDAKiM7EugS9iUFQsuRj1lHr8", name: "RCS_1styear_S2_IP2_RewardsSplit" }
+  };
+
+  const SYSTEM_HEADER_LABELS = ["email address","name","register no","department","total"];
+  function normalizeLabel(label) { return (label||"").toString().trim().toLowerCase(); }
+  function isSystemHeader(hdr) { return SYSTEM_HEADER_LABELS.includes(normalizeLabel(hdr)); }
+
+  // DOM refs
+  const departmentFilter = document.getElementById("departmentFilter");
+  const sortBy = document.getElementById("sortBy");
+  const searchInput = document.getElementById("searchInput");
+  const leaderboardTable = document.getElementById("leaderboardTable");
+  const totalStudentsEl = document.getElementById("totalStudents");
+  const ip1TotalPointsEl = document.getElementById("ip1TotalPoints");
+  const ip2TotalPointsEl = document.getElementById("ip2TotalPoints");
+  const statusBar = document.getElementById("statusBar");
+  const statusMessage = document.getElementById("statusMessage");
+  const paginationControls = document.getElementById("paginationControls");
+  const pageSizeSelect = document.getElementById("pageSizeSelect");
+  const prevPageBtn = document.getElementById("prevPageBtn");
+  const nextPageBtn = document.getElementById("nextPageBtn");
+  const pageInfo = document.getElementById("pageInfo");
+  const topHighlights = document.getElementById("topHighlights");
+
+  let allStudents = [];
+  let filteredStudents = [];
+  let pageSize = 50;
+  let currentPage = 1;
+
+  function showStatus(message, type="info"){
+    statusBar.classList.remove("hidden");
+    statusMessage.textContent = message;
+    statusMessage.className = "rounded-lg p-3 text-sm";
+    if (type === "error") statusMessage.classList.add("bg-red-50","text-red-700","border","border-red-100");
+    else if (type === "success") statusMessage.classList.add("bg-green-50","text-green-700","border","border-green-100");
+    else statusMessage.classList.add("bg-yellow-50","text-yellow-700","border","border-yellow-100");
+  }
+
+  async function loadSheet(internalKey, sheetInfo) {
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${sheetInfo.id}/gviz/tq?sheet=${encodeURIComponent(sheetInfo.name)}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      
+      const text = await res.text();
+      if (text.trim().startsWith("<!DOCTYPE html") || text.toLowerCase().includes("signin")) {
+        throw new Error("Sheet not public");
+      }
+      
+      const json = JSON.parse(text.substr(47).slice(0, -2));
+      const headers = json.table.cols.map(c => c.label?.trim() || "").filter(Boolean);
+      const headerMap = {};
+      headers.forEach(h => headerMap[normalizeLabel(h)] = h);
+      
+      const rows = json.table.rows || [];
+      return rows.map(r => {
+        const obj = { _internal: internalKey };
+        headers.forEach((h,i)=> obj[h] = r.c[i]?.v ?? "");
+        return obj;
+      });
+    } catch(err) {
+      console.error(`Failed to load ${internalKey} sheet:`, err);
+      return [];
+    }
+  }
+
+  async function loadAllData() {
+    showStatus("Loading IP1 data...", "info");
+    const ip1Data = await loadSheet("IP1", SHEETS.IP1);
+    showStatus("Loading IP2 data...", "info");
+    const ip2Data = await loadSheet("IP2", SHEETS.IP2);
+    
+    // Find headers
+    const ip1Headers = ip1Data.length > 0 ? Object.keys(ip1Data[0]).filter(h => !h.startsWith("_") && !isSystemHeader(h)) : [];
+    const ip2Headers = ip2Data.length > 0 ? Object.keys(ip2Data[0]).filter(h => !h.startsWith("_") && !isSystemHeader(h)) : [];
+    
+    // Find key columns
+    const findKey = (data, keywords) => {
+      if (data.length === 0) return null;
+      const keys = Object.keys(data[0]).filter(k => !k.startsWith("_"));
+      return keys.find(k => keywords.some(kw => normalizeLabel(k).includes(kw))) || keys[0];
+    };
+    
+    const regKey = findKey(ip1Data, ["register", "reg"]);
+    const nameKey = findKey(ip1Data, ["name"]);
+    const deptKey = findKey(ip1Data, ["department"]);
+    
+    // Calculate totals for each student
+    const studentMap = new Map();
+    
+    // Process IP1 data
+    ip1Data.forEach(student => {
+      const reg = regKey ? String(student[regKey] || "").trim().toLowerCase() : "";
+      if (!reg) return;
+      
+      if (!studentMap.has(reg)) {
+        studentMap.set(reg, {
+          registerNo: regKey ? student[regKey] || "" : "",
+          name: nameKey ? student[nameKey] || "" : "",
+          department: deptKey ? student[deptKey] || "" : "",
+          ip1Points: 0,
+          ip2Points: 0,
+          total: 0
+        });
+      }
+      
+      const entry = studentMap.get(reg);
+      const ip1Points = ip1Headers.reduce((acc, h) => acc + (Number(student[h]) || 0), 0);
+      entry.ip1Points = ip1Points;
+      entry.name = nameKey ? (student[nameKey] || entry.name) : entry.name;
+      entry.department = deptKey ? (student[deptKey] || entry.department) : entry.department;
+    });
+    
+    // Process IP2 data
+    ip2Data.forEach(student => {
+      const reg = regKey ? String(student[regKey] || "").trim().toLowerCase() : "";
+      if (!reg) return;
+      
+      if (!studentMap.has(reg)) {
+        studentMap.set(reg, {
+          registerNo: regKey ? student[regKey] || "" : "",
+          name: nameKey ? student[nameKey] || "" : "",
+          department: deptKey ? student[deptKey] || "" : "",
+          ip1Points: 0,
+          ip2Points: 0,
+          total: 0
+        });
+      }
+      
+      const entry = studentMap.get(reg);
+      const ip2Points = ip2Headers.reduce((acc, h) => acc + (Number(student[h]) || 0), 0);
+      entry.ip2Points = ip2Points;
+      if (!entry.name && nameKey) entry.name = student[nameKey] || "";
+      if (!entry.department && deptKey) entry.department = student[deptKey] || "";
+    });
+    
+    // Calculate totals and convert to array
+    allStudents = Array.from(studentMap.values()).map(s => {
+      s.total = s.ip1Points + s.ip2Points;
+      return s;
+    });
+    
+    // Populate department filter
+    const departments = [...new Set(allStudents.map(s => s.department).filter(Boolean))].sort();
+    departments.forEach(d => {
+      if (d && d.trim()) {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        departmentFilter.appendChild(opt);
+      }
+    });
+    
+    // Update totals
+    const ip1Total = allStudents.reduce((a, s) => a + s.ip1Points, 0);
+    const ip2Total = allStudents.reduce((a, s) => a + s.ip2Points, 0);
+    totalStudentsEl.textContent = allStudents.length;
+    ip1TotalPointsEl.textContent = ip1Total.toLocaleString();
+    ip2TotalPointsEl.textContent = ip2Total.toLocaleString();
+    
+    showStatus(`Loaded ${allStudents.length} students from both sheets.`, "success");
+    
+    // Initial render
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const deptFilter = departmentFilter.value;
+    const sortValue = sortBy.value;
+    const searchTerm = searchInput.value.trim().toLowerCase();
+    
+    filteredStudents = allStudents.filter(s => {
+      if (deptFilter && s.department !== deptFilter) return false;
+      if (searchTerm) {
+        const matchName = s.name.toLowerCase().includes(searchTerm);
+        const matchReg = s.registerNo.toLowerCase().includes(searchTerm);
+        if (!matchName && !matchReg) return false;
+      }
+      return true;
+    });
+    
+    // Sort
+    if (sortValue === "ip1") {
+      filteredStudents.sort((a, b) => b.ip1Points - a.ip1Points);
+    } else if (sortValue === "ip2") {
+      filteredStudents.sort((a, b) => b.ip2Points - a.ip2Points);
+    } else {
+      filteredStudents.sort((a, b) => b.total - a.total);
+    }
+    
+    currentPage = 1;
+    renderTable();
+    renderTopHighlights();
+  }
+
+  function renderTable() {
+    if (!pageSize || pageSize <= 0) pageSize = 50;
+    const totalRows = filteredStudents.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalRows);
+    const pageRows = filteredStudents.slice(startIndex, endIndex);
+    
+    let rowsHTML = "";
+    let rank = startIndex + 1;
+    
+    pageRows.forEach(s => {
+      const rankClass = rank <= 3 ? getRankClass(rank) : "";
+      rowsHTML += `
+        <tr class="hover:bg-indigo-50 transition-colors ${rankClass}">
+          <td class="px-4 py-3 text-center font-bold ${rank <= 3 ? 'text-yellow-600' : 'text-gray-700'}">${rank}</td>
+          <td class="px-4 py-3 font-medium">${s.registerNo}</td>
+          <td class="px-4 py-3">${s.name}</td>
+          <td class="px-4 py-3">${s.department || "-"}</td>
+          <td class="px-4 py-3 text-center text-green-600 font-semibold">${s.ip1Points}</td>
+          <td class="px-4 py-3 text-center text-blue-600 font-semibold">${s.ip2Points}</td>
+          <td class="px-4 py-3 text-center font-bold text-indigo-700 bg-indigo-50">${s.total}</td>
+        </tr>
+      `;
+      rank++;
+    });
+    
+    leaderboardTable.innerHTML = rowsHTML || `<tr><td class="px-4 py-3" colspan="7">No students found</td></tr>`;
+    
+    if (totalRows > pageSize) {
+      paginationControls.classList.remove("hidden");
+    } else {
+      paginationControls.classList.add("hidden");
+    }
+    
+    pageInfo.textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalRows}`;
+    prevPageBtn.disabled = currentPage <= 1;
+    nextPageBtn.disabled = currentPage >= totalPages;
+  }
+
+  function getRankClass(rank) {
+    if (rank === 1) return "bg-yellow-50";
+    if (rank === 2) return "bg-gray-50";
+    if (rank === 3) return "bg-orange-50";
+    return "";
+  }
+
+  function renderTopHighlights() {
+    const top10 = filteredStudents.slice(0, 10);
+    let html = "";
+    
+    top10.forEach((s, idx) => {
+      const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+      const colors = ["bg-yellow-100 border-yellow-500", "bg-gray-100 border-gray-500", "bg-orange-100 border-orange-500", "bg-white", "bg-white", "bg-white", "bg-white", "bg-white", "bg-white", "bg-white"];
+      
+      html += `
+        <div class="${colors[idx]} border rounded-xl p-4 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <span class="text-2xl">${medals[idx]}</span>
+            <div>
+              <div class="font-semibold text-gray-800">${s.name}</div>
+              <div class="text-sm text-gray-500">${s.registerNo}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xl font-bold text-indigo-700">${s.total}</div>
+            <div class="text-xs text-gray-500">total points</div>
+          </div>
+        </div>
+      `;
+    });
+    
+    topHighlights.innerHTML = html;
+  }
+
+  // Event listeners
+  departmentFilter.addEventListener("change", applyFilters);
+  sortBy.addEventListener("change", applyFilters);
+  searchInput.addEventListener("input", applyFilters);
+  
+  pageSizeSelect.addEventListener("change", function() {
+    pageSize = Number(pageSizeSelect.value) || 50;
+    currentPage = 1;
+    renderTable();
+  });
+  
+  prevPageBtn.addEventListener("click", function() {
+    if (currentPage > 1) {
+      currentPage--;
+      renderTable();
+    }
+  });
+  
+  nextPageBtn.addEventListener("click", function() {
+    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderTable();
+    }
+  });
+
+  // Initialize
+  (async function init() {
+    await loadAllData();
+  })();
+</script>
+</body>
+</html>
