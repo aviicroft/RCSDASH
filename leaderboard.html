@@ -156,6 +156,7 @@
               <th class="px-4 py-3">Register No</th>
               <th class="px-4 py-3">Name</th>
               <th class="px-4 py-3">Department</th>
+              <th class="px-4 py-3 text-center">Marks / 90</th>
               <th class="px-4 py-3 text-center">IP1 Points</th>
               <th class="px-4 py-3 text-center">IP2 Points</th>
               <th class="px-4 py-3 text-center bg-indigo-700">Total Points</th>
@@ -339,6 +340,7 @@
           registerNo: regKey ? student[regKey] || "" : "",
           name: nameKey ? student[nameKey] || "" : "",
           department: deptKey ? student[deptKey] || "" : "",
+          marksOutOf90: null,
           ip1Points: 0,
           ip2Points: 0,
           total: 0
@@ -362,6 +364,7 @@
           registerNo: regKey ? student[regKey] || "" : "",
           name: nameKey ? student[nameKey] || "" : "",
           department: deptKey ? student[deptKey] || "" : "",
+          marksOutOf90: null,
           ip1Points: 0,
           ip2Points: 0,
           total: 0
@@ -380,6 +383,8 @@
       s.total = s.ip1Points + s.ip2Points;
       return s;
     });
+    showStatus("Loading internal marks...", "info");
+    await loadLeaderboardMarks();
     
     // Populate department filter
     const departments = [...new Set(allStudents.map(s => s.department).filter(Boolean))].sort();
@@ -456,6 +461,7 @@
           <td class="px-4 py-3 font-medium">${s.registerNo}</td>
           <td class="px-4 py-3"><a href="#" class="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline student-link" data-register="${s.registerNo}" data-department="${s.department || ''}">${s.name}</a></td>
           <td class="px-4 py-3">${s.department || "-"}</td>
+          <td class="px-4 py-3 text-center font-semibold text-purple-700">${s.marksOutOf90 == null ? "-" : s.marksOutOf90}</td>
           <td class="px-4 py-3 text-center text-green-600 font-semibold">${s.ip1Points}</td>
           <td class="px-4 py-3 text-center text-blue-600 font-semibold">${s.ip2Points}</td>
           <td class="px-4 py-3 text-center font-bold text-indigo-700 bg-indigo-50">${s.total}</td>
@@ -464,7 +470,7 @@
       rank++;
     });
     
-    leaderboardTable.innerHTML = rowsHTML || `<tr><td class="px-4 py-3" colspan="7">No students found</td></tr>`;
+    leaderboardTable.innerHTML = rowsHTML || `<tr><td class="px-4 py-3" colspan="8">No students found</td></tr>`;
     
     // Add click handlers for student links
     document.querySelectorAll('.student-link').forEach(link => {
@@ -492,6 +498,83 @@
     if (rank === 2) return "bg-gray-50";
     if (rank === 3) return "bg-orange-50";
     return "";
+  }
+
+  async function loadLeaderboardMarks() {
+    const internalKey = "IP2";
+    const sheets = INTERNAL_MARKS_SHEETS[internalKey] || {};
+    const studentsByDept = allStudents.reduce((map, student) => {
+      const dept = student.department || "";
+      if (!dept) return map;
+      if (!map.has(dept)) map.set(dept, []);
+      map.get(dept).push(student);
+      return map;
+    }, new Map());
+
+    for (const [department, deptStudents] of studentsByDept.entries()) {
+      const deptSheet = sheets[department];
+      if (!deptSheet) continue;
+
+      try {
+        const url = `https://docs.google.com/spreadsheets/d/${deptSheet.id}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(deptSheet.name)}&tq=${encodeURIComponent("SELECT *")}`;
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const text = await res.text();
+        if (text.trim().startsWith("<!DOCTYPE html") || text.toLowerCase().includes("signin")) {
+          throw new Error("Sheet not public");
+        }
+
+        const match = text.match(/setResponse\(([\s\S]*?)\)\s*;?$/);
+        const json = match ? JSON.parse(match[1]) : JSON.parse(text.substr(47).slice(0, -2));
+        const cols = json.table.cols.map(c => c.label?.trim() || "").filter(Boolean);
+        const rows = (json.table.rows || []).map(r => {
+          const obj = {};
+          cols.forEach((c, i) => obj[c] = r.c[i]?.v ?? "");
+          return obj;
+        });
+
+        const regKey = cols.find(c => normalizeLabel(c).includes("register") || normalizeLabel(c).includes("reg") || normalizeLabel(c).includes("roll"));
+        if (!regKey) continue;
+
+        const rowByRegister = new Map(rows.map(row => [String(row[regKey]).toLowerCase().trim(), row]));
+        deptStudents.forEach(student => {
+          const row = rowByRegister.get(String(student.registerNo).toLowerCase().trim());
+          if (!row) return;
+
+          const mappingSubjects = deptSubjects[department] || [];
+          let marksTotal = 0;
+
+          if (mappingSubjects.length) {
+            mappingSubjects.forEach(sub => {
+              const codeHeader = cols.find(c => normalizeLabel(c) === normalizeLabel(sub.code) || c === sub.code);
+              const headerKey = codeHeader || cols.find(c => normalizeLabel(c).includes(normalizeLabel(sub.code)));
+              if (!headerKey) return;
+              marksTotal += row[headerKey] === 0 || row[headerKey] === "0" ? 0 : Number(row[headerKey]) || 0;
+            });
+          } else {
+            const startIndex = cols.findIndex(c => /[A-Za-z]/.test(c) && /\d/.test(c) && c.length >= 3);
+            const effectiveStart = Math.max(0, startIndex);
+            const stopIndex = cols.findIndex(c => {
+              const label = normalizeLabel(c || "");
+              return (label.includes("balance") && label.includes("reward")) || label.includes("allocated") || label.includes("total internal");
+            });
+            const effectiveStop = stopIndex > effectiveStart ? stopIndex : cols.length;
+
+            for (let i = effectiveStart; i < effectiveStop; i++) {
+              const col = cols[i];
+              const label = normalizeLabel(col);
+              if (!col || label.endsWith("_rp") || label.includes("reward") || isSystemHeader(col)) continue;
+              marksTotal += row[col] === 0 || row[col] === "0" ? 0 : Number(row[col]) || 0;
+            }
+          }
+
+          student.marksOutOf90 = Math.min(90, marksTotal);
+        });
+      } catch (err) {
+        console.error(`Failed to load leaderboard marks for ${department}:`, err);
+      }
+    }
   }
 
   function renderTopHighlights() {
