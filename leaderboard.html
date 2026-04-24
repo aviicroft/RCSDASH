@@ -137,6 +137,7 @@
           <select id="sortBy"
             class="w-full border rounded-lg px-3 py-2 h-12 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
             <option value="total">Total Points (Desc)</option>
+            <option value="marks">Marks (Desc)</option>
             <option value="ip1">IP1 Points (Desc)</option>
             <option value="ip2">IP2 Points (Desc)</option>
           </select>
@@ -430,6 +431,8 @@
       filteredStudents.sort((a, b) => b.ip1Points - a.ip1Points);
     } else if (sortValue === "ip2") {
       filteredStudents.sort((a, b) => b.ip2Points - a.ip2Points);
+    } else if (sortValue === "marks") {
+      filteredStudents.sort((a, b) => (Number(b.marksOutOf90) || 0) - (Number(a.marksOutOf90) || 0));
     } else {
       filteredStudents.sort((a, b) => b.total - a.total);
     }
